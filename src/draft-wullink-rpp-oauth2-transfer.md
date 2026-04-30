@@ -155,9 +155,14 @@ this requires the server to support the JWT profile for OAuth 2.0 Access Tokens 
 
 ## Federation Trust Model
 
+The RPP federation model uses the registry as the central trust anchor, operating as a hub-and-spoke topology. Registrars establish a trust relationship with the registry during accreditation; they do not need to establish direct trust relationships with each other. This allows any two registrars to participate in a federated transfer without any prior bilateral arrangement.
+
 **Registry as trust anchor.** As part of registrar onboarding, each registrar that operates its own authorization server (i.e., maintains registrant accounts) MUST register its authorization server metadata with the registry. This includes at minimum:
 
 - The authorization server's authorization endpoint URI, used by the gaining registrar to construct the redirect.
+- The authorization server's JWKS endpoint URI or the public key material itself, used by the registry to validate tokens issued by that authorization server.
+
+The registry stores this metadata as part of the registrar's profile and makes it available via the discovery mechanism.
 
 **Token validation without bilateral trust.** When the registry receives a transfer request carrying a JWT issued by the losing registrar's authorization server, it validates the token locally using the losing registrar's public key that was registered at onboarding. No runtime call to the losing registrar or its authorization server is required. The registry already trusts that public key because it was registered through the accreditation process.
 
