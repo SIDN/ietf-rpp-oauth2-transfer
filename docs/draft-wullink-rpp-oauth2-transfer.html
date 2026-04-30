@@ -1555,12 +1555,16 @@ this requires the server to support the JWT profile for OAuth 2.0 Access Tokens 
         <h3 id="name-federation-trust-model">
 <a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-federation-trust-model" class="section-name selfRef">Federation Trust Model</a>
         </h3>
-<p id="section-6.1-1">The RPP federation model uses the registry as the central trust anchor....<a href="#section-6.1-1" class="pilcrow">¶</a></p>
-<p id="section-6.1-2"><strong>Token validation without bilateral trust.</strong> When the registry receives a transfer request carrying a JWT issued by the losing registrar's authorization server, it validates the token locally using the losing registrar's public key that was registered at onboarding. No runtime call to the losing registrar or its authorization server is required. The registry already trusts that public key because it was registered through the accreditation process.<a href="#section-6.1-2" class="pilcrow">¶</a></p>
-<p id="section-6.1-3"><strong>Gaining registrar.</strong> The gaining registrar only needs to trust the registry. It obtains the losing registrar's authorization server URI from the registry's discovery endpoint, redirects the registrant's browser there, and exchanges the resulting authorization code for a token. It does not need to pre-configure or authenticate the losing registrar. The browser redirect and back-channel token exchange are both secured by standard HTTPS and do not require a federated identity relationship between the two registrars.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
-<p id="section-6.1-4">The following diagram shows how authorization server URIs and public keys flow through the registry, and how the gaining registrar uses them at transfer time to redirect the registrant's browser:<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+<p id="section-6.1-1"><strong>Registry as trust anchor.</strong> As part of registrar onboarding, each registrar that operates its own authorization server (i.e., maintains registrant accounts) MUST register its authorization server metadata with the registry. This includes at minimum:<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-2.1">The authorization server's authorization endpoint URI, used by the gaining registrar to construct the redirect.<a href="#section-6.1-2.1" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-6.1-3"><strong>Token validation without bilateral trust.</strong> When the registry receives a transfer request carrying a JWT issued by the losing registrar's authorization server, it validates the token locally using the losing registrar's public key that was registered at onboarding. No runtime call to the losing registrar or its authorization server is required. The registry already trusts that public key because it was registered through the accreditation process.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.1-4"><strong>Gaining registrar.</strong> The gaining registrar only needs to trust the registry. It obtains the losing registrar's authorization server URI from the registry's discovery endpoint, redirects the registrant's browser there, and exchanges the resulting authorization code for a token. It does not need to pre-configure or authenticate the losing registrar. The browser redirect and back-channel token exchange are both secured by standard HTTPS and do not require a federated identity relationship between the two registrars.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+<p id="section-6.1-5">The following diagram shows how authorization server URIs and public keys flow through the registry, and how the gaining registrar uses them at transfer time to redirect the registrant's browser:<a href="#section-6.1-5" class="pilcrow">¶</a></p>
 <span id="name-rpp-federation-trust-model-"></span><figure id="figure-1">
-          <div class="breakable lang-ascii sourcecode" id="section-6.1-5.1">
+          <div class="breakable lang-ascii sourcecode" id="section-6.1-6.1">
 <pre>  Gaining              Registry             Losing
   Registrar          (Trust Anchor)        Registrar
      |                    |                    |
@@ -1619,15 +1623,15 @@ this requires the server to support the JWT profile for OAuth 2.0 Access Tokens 
 <figcaption><a href="#figure-1" class="selfRef">Figure 1</a>:
 <a href="#name-rpp-federation-trust-model-" class="selfRef">RPP Federation Trust Model — Onboarding, Discovery and Browser Redirect</a>
           </figcaption></figure>
-<p id="section-6.1-6"><strong>Security properties.</strong> This model provides the following guarantees:<a href="#section-6.1-6" class="pilcrow">¶</a></p>
+<p id="section-6.1-7"><strong>Security properties.</strong> This model provides the following guarantees:<a href="#section-6.1-7" class="pilcrow">¶</a></p>
 <ul class="compact">
-<li class="compact" id="section-6.1-7.1">A rogue registrar cannot forge a transfer token that the registry will accept, because only the legitimate losing registrar's public key (registered at onboarding) can produce a valid signature.<a href="#section-6.1-7.1" class="pilcrow">¶</a>
+<li class="compact" id="section-6.1-8.1">A rogue registrar cannot forge a transfer token that the registry will accept, because only the legitimate losing registrar's public key (registered at onboarding) can produce a valid signature.<a href="#section-6.1-8.1" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-6.1-7.2">The gaining registrar cannot forge registrant consent, because the token is issued by the losing registrar's authorization server, not the gaining registrar.<a href="#section-6.1-7.2" class="pilcrow">¶</a>
+          <li class="compact" id="section-6.1-8.2">The gaining registrar cannot forge registrant consent, because the token is issued by the losing registrar's authorization server, not the gaining registrar.<a href="#section-6.1-8.2" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-6.1-7.3">The registry controls the set of trusted authorization servers by controlling which registrar IdP metadata it accepts at onboarding.<a href="#section-6.1-7.3" class="pilcrow">¶</a>
+          <li class="compact" id="section-6.1-8.3">The registry controls the set of trusted authorization servers by controlling which registrar IdP metadata it accepts at onboarding.<a href="#section-6.1-8.3" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-6.1-7.4">Registrars need no knowledge of each other beyond what the registry exposes via the discovery endpoint.<a href="#section-6.1-7.4" class="pilcrow">¶</a>
+          <li class="compact" id="section-6.1-8.4">Registrars need no knowledge of each other beyond what the registry exposes via the discovery endpoint.<a href="#section-6.1-8.4" class="pilcrow">¶</a>
 </li>
         </ul>
 </section>
