@@ -1,0 +1,434 @@
+%%%
+title = "Secure Object Transfer for RESTful Provisioning Protocol (RPP)"
+abbrev = "Secure Object Transfer for RPP"
+area = "Internet"
+workgroup = "Network Working Group"
+submissiontype = "IETF"
+keyword = [""]
+TocDepth = 4
+date = 2026-04-30
+
+[seriesInfo]
+name = "Internet-Draft"
+value = "draft-wullink-rpp-oauth2-transfer-00"
+stream = "IETF"
+status = "standard"
+
+[[author]]
+initials="M."
+surname="Wullink"
+fullname="Maarten Wullink"
+abbrev = ""
+organization = "SIDN Labs"
+  [author.address]
+  email = "maarten.wullink@sidn.nl"
+  uri = "https://sidn.nl/"
+
+[[author]]
+initials="P."
+surname="Kowalik"
+fullname="Pawel Kowalik"
+abbrev = ""
+organization = "DENIC"
+  [author.address]
+  email = "pawel.kowalik@denic.de"
+  uri = "https://denic.de/"
+
+%%%
+
+.# Abstract
+
+This document describes how OAuth 2.0 [@!RFC6749] can be used to secure object transfers in RESTful Provisioning Protocol (RPP) [@!I-D.wullink-rpp-core].
+
+{mainmatter}
+
+# Introduction
+
+TODO
+
+# Terminology
+
+In this document the following terminology is used.
+
+REST - Representational State Transfer ([@!REST]). An architectural style.
+
+RESTful - A RESTful web service is a web service or API implemented using HTTP and the principles of [@!REST].
+
+EPP RFCs - This is a reference to the EPP version 1.0 specifications [@!RFC5730], [@!RFC5731], [@!RFC5732] and [@!RFC5733].
+
+RESTful Provisioning Protocol or RPP - The protocol described in this document.
+
+URL - A Uniform Resource Locator as defined in [@!RFC3986].
+
+Resource - An object having a type, data, and possible relationship to other resources, identified by a URL.
+
+RPP client - An HTTP user agent performing an RPP request
+
+RPP server - An HTTP server responsible for processing requests and returning results in any supported media type.
+
+JWT - JSON Web Token as defined in [@!RFC7519].
+
+# Conventions Used in This Document
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT","SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [@!RFC2119].
+
+In examples, indentation and white space in examples are provided only to illustrate element relationships and are not REQUIRED features of the protocol.
+
+All example requests assume a RPP server using HTTP version 2 is listening on the standard HTTPS port on host rpp.example. An authorization token has been provided by an out of band process and MUST be used by the client to authenticate each request.
+
+# Object Transfer Authorization
+
+OAuth 2.0 Rich Authorization Requests [@!RFC9396] extends the standard OAuth 2.0 authorization request with an `authorization_details` parameter that carries a structured JSON object describing precisely what the client is requesting authorization for. Unlike scopes, which are coarse-grained string tokens, `authorization_details` allows the request to include typed, fine-grained authorization data, such as the specific object being transferred. The  authorization server can present to the user in a meaningful consent screen.
+
+In RPP, RAR is used for interactive federated object transfers to convey the specific domain name or contact handle being transferred. The gaining registrar includes an `authorization_details` object of type `rpp_transfer` in the authorization request to the losing registrar's authorization server. The registrant then sees exactly which object they are consenting to transfer. The authorization server MUST echo the `authorization_details` object back as a claim in the issued JWT, giving the registry verifiable, tamper-proof evidence of what was authorized and for which object.
+
+The `type` field MUST be set to `rpp_transfer`. Table (#tbl-rar) lists the RAR fields defined for RPP.
+
+| Field | Type | Requirement | Description |
+| ----- | ---- | ----------- | ----------- |
+| `type` | String | REQUIRED | MUST be `rpp_transfer`. |
+| `object_type` | String | REQUIRED | The RPP object type being transferred. MUST be one of `domain` or `contact`. |
+| `object_identifier` | String | REQUIRED | The fully qualified name or handle of the specific object to be transferred (e.g., `foo.example` or `CID-12345`). |
+Table: RPP Transfer Authorization, RAR `authorization_details` object (Primary Method, [@!RFC9396])
+{#tbl-rar}
+
+Example RAR `authorization_details` value for a domain transfer:
+
+```json
+[{
+  "type": "rpp_transfer",
+  "object_type": "domain",
+  "object_identifier": "foo.example"
+}]
+```
+
+The losing registrar's authorization server MUST echo the `authorization_details` back as a claim in the issued JWT. The registry MUST validate the `authorization_details` claim in the token and MUST verify that `object_type` and `object_identifier` match the object being transferred.
+
+When the losing registrar's authorization server does not support RAR ([@!RFC9396]), the specific object being transferred MUST be conveyed via the `rpp_object_id` claim rather than encoded in the scope string:
+
+- To authorize a domain transfer, the specific domain name MUST be present in the `rpp_object_id` claim (e.g., `foo.example`). 
+- To authorize a contact transfer, the specific contact identifier MUST be present in the `rpp_object_id` claim (e.g., `REG-12345`). 
+
+# Claims
+
+RPP access tokens MUST conform to the JWT Profile for OAuth 2.0 Access Tokens defined in [@!RFC9068]. This profile establishes a standardized set of claims that RPP uses to make authorization decisions consistently across implementations and identity providers.
+
+## RPP-Specific Claims
+
+In addition to the standard [@!RFC9068] claims, table (#tbl-rpp-claims) lists the RPP-specific claims that are defined to enable fine-grained authorization decisions. Required claims MUST be present in every RPP access token. Optional claims SHOULD be included when applicable to the deployment or request context.
+
+| Claim | Requirement | Type | Description |
+| ----- | ----------- | ---- | ----------- |
+| `rpp_transfer_authinfo` | OPTIONAL | String | The transfer authorization information used in Fallback flow object transfer. When present, the value MUST be equivalent to the value that would otherwise be sent in the `RPP-Authorization` header, using the same `<method> <authorization information>` format. The RPP server MUST treat this claim as equivalent to the `RPP-Authorization` header; if both are present in the same request, the claim value MUST take precedence. This claim MUST only be present in access tokens used for transfer operations. |
+| `rpp_object_id` | OPTIONAL | String | The identifier of the specific object being transferred. MUST be present in access tokens for interactive federated transfers when the fallback dynamic scope method is used (`transfer:domain` or `transfer:contact`) and the `authorization_details` claim ([@!RFC9396]) is not present. The value MUST be the fully qualified name or handle of the object (e.g., `foo.example` or `CID-12345`). The RPP server MUST validate that this value matches the object being transferred. This claim MUST NOT be present when `authorization_details` is present. |
+| `authorization_details` | OPTIONAL | Array of Objects | Rich authorization details as defined by [@!RFC9396]. MUST be present in access tokens for interactive federated transfers when the RAR method is used. Each object in the array MUST have a `type` field; for RPP transfer tokens the `type` MUST be `rpp_transfer` and the object MUST include `object_type` and `object_identifier` fields (see (#tbl-rar)). The RPP server MUST validate that `object_type` and `object_identifier` match the object being transferred. When this claim is present, the `rpp_object_id` claim MUST NOT be present. |
+Table: RPP Specific Access Token Claims
+{#tbl-rpp-claims}
+
+
+# Object Transfer
+
+**NOTE:** this is very early draft of how a transfer could work in RPP, it is added here to provide a complete picture of the transfer flow and to be able to discuss the details of the transfer flow and the security mechanisms that can be used to secure the transfer flow. This section is expected to be significantly revised and updated as the transfer flow and the security mechanisms are further developed and refined.
+
+The server MAY support a secure object transfer mechanism based on OAuth 2.0 federation for secure object transfer between registrars, the gaining registrar can obtain an access token from the losing registrar's authorization server to authorize the transfer request. This provides a secure mechanism for transferring objects without exposing sensitive information in the transfer request or response messages. This also prevents the use of opaque transfer tokens and their inherent security risks, such as token leakage or replay attacks.
+If any of the parties in the transfer flow does not support the secure transfer mechanism based on OAuth 2.0 federation, then the transfer MUST fall back to the Fallback flow transfer mechanism using opaque transfer tokens, using the `RPP-Authorization` header to include the transfer token in the transfer request messages.
+
+The two transfer mechanisms cover complementary scenarios:
+
+- **Interactive flow (OAuth 2.0 federated):** The current registrant has an account at the losing registrar and actively initiates or approves the transfer themselves — for example, a registrant migrating their own domain to a new registrar. The registrant authenticates at the losing registrar's authorization server and grants explicit, object-scoped consent.
+
+- **Fallback flow (authinfo):** The losing registrar has not registered an authorization server URI with the registry, or the domain has been sold and the new owner has no account at the losing registrar. In this case interactive consent at the losing registrar is not possible. The seller (the previous owner, who does have an account at the losing registrar) obtains a transfer authorization code (authinfo) out-of-band and passes it to the buyer. The buyer provides the authinfo to the gaining registrar, which includes it in the transfer request via the `RPP-Authorization` header or the `rpp_transfer_authinfo` JWT claim. The registry validates the authinfo and executes the transfer without requiring the new owner to have any account at the losing registrar.
+
+**Flow selection is not at the discretion of the gaining registrar.** The gaining registrar MUST use whichever flow the losing registrar's capabilities dictate, as determined by registry discovery. Specifically:
+
+- If the registry's discovery endpoint returns an authorization server URI for the losing registrar, the gaining registrar MUST use the interactive OAuth 2.0 federated flow. Fallback flow MUST NOT be used as a substitute, even if it would be simpler to implement. The only exception is if the new owner is a different party than the previous owner (e.g., the domain was sold), in which case the gaining registrar MUST use Fallback flow because the new owner cannot authenticate to the losing registrar's authorization server to give consent.
+- If the registry's discovery endpoint returns no authorization server URI for the losing registrar, the gaining registrar MUST use Fallback flow.
+
+The registry MUST enforce this: if a Fallback flow transfer request (i.e., a request carrying an `RPP-Authorization` header or `rpp_transfer_authinfo` claim) is received for an object whose losing registrar has a registered authorization server URI, the registry MUST reject the request with an appropriate error response. This prevents downgrade attacks and ensures that registrars cannot bypass the stronger OAuth 2.0 flow for operational convenience once they have declared support for it.
+
+**Token single-use enforcement.** Access tokens issued by the losing registrar's authorization server for use in the interactive federated transfer flow MUST be single-use. The registry MUST reject any transfer request that presents a token that has already been used to authorize a transfer, even if the token has not yet expired. The losing registrar's authorization server MUST issue tokens with the intent of single use, and SHOULD include a unique `jti` (JWT ID) claim in each token to facilitate replay detection. The registry MUST maintain a short-lived cache of observed `jti` values and MUST reject any token whose `jti` has already been seen.
+
+If the registry cannot enforce single-use semantics (e.g., due to lack of shared state in a distributed deployment), the token lifetime MUST be set as short as operationally feasible, on the order of a few seconds, to minimize the window of opportunity for replay attacks. Token lifetimes for interactive transfer tokens MUST NOT exceed 60 seconds.
+
+For the secure transfer mechanism based on OAuth 2.0 federation, the RPP server requires an established trust relationship with the authorization server of the losing registrar. The server MUST support the necessary mechanisms for validating tokens issued by the losing registrar's authorization server.
+this requires the server to support the JWT profile for OAuth 2.0 Access Tokens [@!RFC9068] and to support the necessary mechanisms for validating tokens issued by external authorization servers. The client MUST include a valid access token in the Authorization header of the transfer request, and the server MUST validate the token and the associated permissions before allowing the transfer to proceed. The server MUST also implement appropriate error handling for cases where the token is invalid, expired, or does not have the necessary permissions for the requested transfer operation. Registrars implementing secure transfer mechanisms based on OAuth 2.0 federation MUST support the federated identity provider function.
+
+## Federation Trust Model
+
+The RPP federation model uses the registry as the central trust anchor....
+
+**Token validation without bilateral trust.** When the registry receives a transfer request carrying a JWT issued by the losing registrar's authorization server, it validates the token locally using the losing registrar's public key that was registered at onboarding. No runtime call to the losing registrar or its authorization server is required. The registry already trusts that public key because it was registered through the accreditation process.
+
+**Gaining registrar.** The gaining registrar only needs to trust the registry. It obtains the losing registrar's authorization server URI from the registry's discovery endpoint, redirects the registrant's browser there, and exchanges the resulting authorization code for a token. It does not need to pre-configure or authenticate the losing registrar. The browser redirect and back-channel token exchange are both secured by standard HTTPS and do not require a federated identity relationship between the two registrars.
+
+The following diagram shows how authorization server URIs and public keys flow through the registry, and how the gaining registrar uses them at transfer time to redirect the registrant's browser:
+
+```ascii
+  Gaining              Registry             Losing
+  Registrar          (Trust Anchor)        Registrar
+     |                    |                    |
+     |                    |                    |
+     : --- Onboarding --- : --- Onboarding --- :
+     |                    |                    |
+     | Register own AS    |                    |
+     | URI + JWKS pubkey  |                    |
+     +------------------->|                    |
+     |                    |                    |
+     |                    | Register own AS    |
+     |                    | URI + JWKS pubkey  |
+     |                    |<-------------------|
+     |                    |                    |
+     : --- Transfer time -------------------- :
+     |                    |                    |
+     | Discover Losing    |                    |
+     | Registrar AS URI   |                    |
+     +------------------->|                    |
+     |                    |                    |
+     | AS URI returned    |                    |
+     |<-------------------|                    |
+     |                    |                    |
+     | Redirect registrant's browser           |
+     | to Losing Registrar AS                  |
+     +---------------------------------------->|
+     |                    |                    |
+     | Auth code returned via browser redirect |
+     |<----------------------------------------|
+     |                    |                    |
+     | Exchange auth code |                    |
+     | for access token   |                    |
+     | (back-channel)     |                    |
+     +---------------------------------------->|
+     |                    |                    |
+     | JWT (signed by     |                    |
+     | Losing Reg AS)     |                    |
+     |<----------------------------------------|
+     |                    |                    |
+     | Transfer request   |                    |
+     | + Bearer JWT       |                    |
+     +------------------->|                    |
+     |                    |                    |
+     |                    | Validate JWT using |
+     |                    | cached Losing Reg  |
+     |                    | JWKS pubkey        |
+     |                    | (no runtime call)  |
+     |                    |------------------> |
+     |                    |                    |
+     | Transfer result    |                    |
+     |<-------------------|                    |
+     |                    |                    |
+```
+Figure: RPP Federation Trust Model — Onboarding, Discovery and Browser Redirect
+
+**Security properties.** This model provides the following guarantees:
+
+- A rogue registrar cannot forge a transfer token that the registry will accept, because only the legitimate losing registrar's public key (registered at onboarding) can produce a valid signature.
+- The gaining registrar cannot forge registrant consent, because the token is issued by the losing registrar's authorization server, not the gaining registrar.
+- The registry controls the set of trusted authorization servers by controlling which registrar IdP metadata it accepts at onboarding.
+- Registrars need no knowledge of each other beyond what the registry exposes via the discovery endpoint.
+
+## Interactive Flow
+
+The interactive flow uses the OAuth 2.0 Authorization Code grant [@!RFC6749, Section 4.1] to obtain explicit, object-specific registrant consent directly from the losing registrar's authorization server. Before redirecting the registrant, the gaining registrar MUST first query the registry's registrar discovery endpoint to resolve the losing registrar's authorization server's authorization URI. If no authorization server URI is available for the losing registrar, the gaining registrar MUST fall back to the Fallback flow described in (#fallback-flow).
+
+The authorization request MUST convey the specific object being transferred so that the losing registrar's authorization server can present the registrant with an accurate consent screen. The **primary method** is Rich Authorization Requests (RAR) [@!RFC9396]: the gaining registrar MUST include an `authorization_details` parameter of type `rpp_transfer` (see (#tbl-rar)). When the losing registrar's authorization server does not support RAR, the **fallback method** is to request a dynamic transfer scope of the form `<object>:transfer` (e.g., `domain:transfer`) and the object identifier MUST be added to the `rpp_object_id` claim. In either case, the resulting token MUST be bound to the single identified object and MUST NOT be accepted by the registry for any other object.
+
+The following diagram illustrates the interactive OAuth 2.0 federated secure object transfer flow:
+
+```ascii
+  Client          Gaining         Registry        Losing
+(Registrant)    Registrar                        Registrar
+     |               |               |               |
+     | 1. Initiate   |               |               |
+     |  transfer of  |               |               |
+     |  foo.example  |               |               |
+     +-------------->|               |               |
+     |               |               |               |
+     |               | 2. Lookup     |               |
+     |               |  losing reg   |               |
+     |               |  AS URI      |               |
+     |               +-------------->|               |
+     |               |               |               |
+     |               | 3. Return     |               |
+     |               |  losing reg   |               |
+     |               |  AS URI      |               |
+     |               |<--------------|               |
+     |               |               |               |
+     | 4. Redirect   |               |               |
+     |  to Losing Reg|               |               |
+     |  AS (RAR:    |               |               |
+     |  authz_details|               |               |
+     |  type=rpp_    |               |               |
+     |  transfer,    |               |               |
+     |  id=example   |               |               |
+     |  .com)        |               |               |
+     |<--------------|               |               |
+     |               |               |               |
+     | 5. Auth &     |               |               |
+     |  approve      |               |               |
+     |  transfer at  |               |               |
+     |  Losing Reg   |               |               |
+     |  AS           |               |               |
+     +---------------------------------------------->|
+     |               |               |               |
+     | 6. Auth code  |               |               |
+     |  + redirect to|               |               |
+     |  Gaining Reg  |               |               |
+     |  callback URI |               |               |
+     |<----------------------------------------------|
+     |               |               |               |
+     | 7. Follow     |               |               |
+     |  redirect     |               |               |
+     |  (auth code   |               |               |
+     |  delivered)   |               |               |
+     +-------------->|               |               |
+     |               |               |               |
+     |               | 8. Exchange   |               |
+     |               |  auth code for|               |
+     |               |  access token |               |
+     |               +------------------------------>|
+     |               |               |               |
+     |               | 9. JWT token  |               |
+     |               |  (authz_      |               |
+     |               |  details=     |               |
+     |               |  {type:rpp_   |               |
+     |               |  transfer,    |               |
+     |               |  id:example   |               |
+     |               |  .com})       |               |
+     |               |<------------------------------|
+     |               |               |               |
+     |               | 10. Transfer  |               |
+     |               |  request +    |               |
+     |               |  Bearer token |               |
+     |               +-------------->|               |
+     |               |               |               |
+     |               |               | 11. Local JWT |
+     |               |               |  validation   |
+     |               |               |  (losing reg  |
+     |               |               |  AS pubkey,  |
+     |               |               |  verify scope)|
+     |               |               |               |
+     |               |               | 12. Execute   |
+     |               |               |  transfer &   |
+     |               |               |  notify Losing|
+     |               |               |  Registrar    |
+     |               |               +-------------->|
+     |               |               |               |
+     |               | 13. Transfer  |               |
+     |               |   successful  |               |
+     |               |<--------------|               |
+     |               |               |               |
+     |  14. Transfer |               |               |
+     |   confirmed   |               |               |
+     |<--------------|               |               |
+     |               |               |               |
+```
+Figure: OAuth 2.0 Federated Secure Object Transfer - Interactive Flow
+
+The steps in the diagram are as follows:
+
+1. The client initiates a transfer request to the gaining registrar, specifying the object to transfer (e.g., `foo.example`).
+2. The gaining registrar queries the registry's registrar discovery endpoint to look up the losing registrar's authorization server authorization URI. The losing registrar is identified from the current sponsoring registrar data on the domain.
+3. The registry returns the losing registrar's authorization server authorization URI. If no URI is registered, the gaining registrar MUST fall back to the Fallback flow.
+4. The gaining registrar redirects the client's browser to the losing registrar's authorization server. The authorization request MUST include an `authorization_details` parameter of type `rpp_transfer` with `object_type: "domain"` and `object_identifier: "foo.example"` (RAR, [@!RFC9396]). If the authorization server does not support RAR, the fallback dynamic scope `transfer:domain:foo.example` MUST be used instead. The gaining registrar's callback URI is included as the OAuth 2.0 `redirect_uri`.
+5. The client authenticates at the losing registrar's authorization server and explicitly approves the transfer scope, providing direct, verifiable consent to release the specific object.
+6. The losing registrar's authorization server issues an authorization code and redirects the client's browser back to the gaining registrar's registered callback URI.
+7. The client's browser follows the redirect, delivering the authorization code to the gaining registrar's callback endpoint.
+8. The gaining registrar exchanges the authorization code for an access token at the losing registrar's authorization server token endpoint (back-channel, Authorization Code grant [@!RFC6749, Section 4.1]).
+9. The losing registrar's authorization server validates the code and issues a signed JWT access token ([@!RFC9068]). When RAR was used, the token MUST contain an `authorization_details` claim echoing the `rpp_transfer` object. When the dynamic scope fallback was used, the token MUST contain the `transfer:domain` (or `transfer:contact`) scope in the `scope` claim and MUST include the `rpp_object_id` claim carrying the specific object identifier.
+10. The gaining registrar submits the transfer request to the registry, including the JWT as a Bearer token in the `Authorization` header.
+11. The registry validates the JWT locally using the losing registrar's authorization server public key (obtained via OAuth 2.0 Authorization Server Metadata [@!RFC8414]). No live call to the losing registrar is required. The registry MUST verify the transfer authorization using the appropriate method: if the token contains an `authorization_details` claim (RAR), the registry MUST verify that the `type` is `rpp_transfer` and that `object_identifier` matches the object being transferred; if the token uses the dynamic scope fallback, the registry MUST verify that the `scope` claim contains `transfer:domain` or `transfer:contact` and that the `rpp_object_id` claim value matches the object being transferred.
+12. The registry executes the transfer and notifies the losing registrar.
+13. The registry returns a successful transfer response to the gaining registrar.
+14. The gaining registrar confirms the completed transfer to the client.
+
+## Fallback Flow
+
+The fallback Flow uses opaque transfer authorization tokens to authorize object transfers between registrars. The gaining registrar obtains the transfer authorization token out-of-band from the losing registrar (e.g., via the registrant or a prior registrar-to-registrar agreement) and includes it in the transfer request. No OAuth 2.0 federation or end-user interaction is required. The registry validates the opaque token against the losing registrar's records to authorize the transfer.
+
+The transfer authorization token MUST be conveyed using the `rpp_transfer_authinfo` claim embedded in a JWT access token.
+
+The following diagram illustrates the machine-to-machine Fallback flow for a secure object transfer:
+
+```ascii
+  Client          Gaining         Registry        Losing
+(Registrant)    Registrar                        Registrar
+     |               |               |               |
+     |   1. Initiate |               |               |
+     |    transfer   |               |               |
+     |   (authz token|               |               |
+     |    provided   |               |               |
+     |    out-of-band|               |               |
+     |    by losing  |               |               |
+     |    registrar) |               |               |
+     +-------------->|               |               |
+     |               |               |               |
+     |               | 2. Transfer   |               |
+     |               |  request      |               |
+     |               |  (RPP-Authori-|               |
+     |               |   zation:     |               |
+     |               |   <token>)    |               |
+     |               +-------------->|               |
+     |               |               |               |
+     |               |               | 3. Validate   |
+     |               |               |  authz token  |
+     |               |               |               |
+     |               |               | 4. Execute    |
+     |               |               |  transfer &   |
+     |               |               |  notify Losing|
+     |               |               |  Registrar    |
+     |               |               +-------------->|
+     |               |               |               |
+     |               | 5. Transfer   |               |
+     |               |   successful  |               |
+     |               |<--------------|               |
+     |               |               |               |
+     |  6. Transfer  |               |               |
+     |   confirmed   |               |               |
+     |<--------------|               |               |
+     |               |               |               |
+```
+Figure: Fallback Object Transfer - Machine to Machine flow
+
+The steps in the diagram are as follows:
+
+1. The client initiates a transfer request to the gaining registrar, providing the transfer authorization token that was obtained out-of-band from the losing registrar (e.g., via the registrant or a prior registrar-to-registrar agreement).
+2. The gaining registrar submits the transfer request to the registry, including the opaque authorization token in the `RPP-Authorization` header.
+3. The registry validates the authorization token against the losing registrar's records.
+4. The registry executes the transfer and notifies the losing registrar.
+5. The registry returns a successful transfer response to the gaining registrar.
+6. The gaining registrar confirms the completed transfer to the client.
+
+# IANA Considerations
+
+TODO
+
+# Internationalization Considerations
+
+TODO
+
+# Security Considerations
+
+TODO
+
+# Change History
+
+## Version 00
+
+- Created initial draft with core concepts and flows.
+
+{backmatter}
+
+{numbered="false"}
+# Acknowledgements
+
+TODO
+
+<reference anchor="REST" target="http://www.ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm">
+  <front>
+    <title>Architectural Styles and the Design of Network-based Software Architectures</title>
+    <author initials="R." surname="Fielding" fullname="Roy Fielding">
+      <organization/>
+    </author>
+    <date year="2000"/>
+  </front>
+</reference>
