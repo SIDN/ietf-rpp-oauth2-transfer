@@ -182,72 +182,16 @@ The registry stores this metadata as part of the registrar's profile and makes i
 
 **Gaining registrar.** The gaining registrar only needs to trust the registry. It obtains the losing registrar's AS URI from the registry's discovery endpoint, redirects the registrant's browser there, and exchanges the resulting authorization code for a token. It does not need to pre-configure or authenticate the losing registrar. The browser redirect and back-channel token exchange are both secured by standard HTTPS and do not require a federated identity relationship between the two registrars.
 
-The following diagram shows how AS URIs and public keys flow through the registry, and how the gaining registrar uses them at transfer time to redirect the registrant's browser:
-
-```ascii
-  Gaining              Registry             Losing
-  Registrar          (Trust Anchor)        Registrar
-     |                    |                    |
-     |                    |                    |
-     : --- Onboarding --- : --- Onboarding --- :
-     |                    |                    |
-     | Register own AS    |                    |
-     | URI + JWKS pubkey  |                    |
-     +------------------->|                    |
-     |                    |                    |
-     |                    | Register own AS    |
-     |                    | URI + JWKS pubkey  |
-     |                    |<-------------------|
-     |                    |                    |
-     : --- Transfer time -------------------- :
-     |                    |                    |
-     | Discover Losing    |                    |
-     | Registrar AS URI   |                    |
-     +------------------->|                    |
-     |                    |                    |
-     | AS URI returned    |                    |
-     |<-------------------|                    |
-     |                    |                    |
-     | Redirect registrant's browser           |
-     | to Losing Registrar AS                  |
-     +---------------------------------------->|
-     |                    |                    |
-     | Auth code returned via browser redirect |
-     |<----------------------------------------|
-     |                    |                    |
-     | Exchange auth code |                    |
-     | for access token   |                    |
-     | (back-channel)     |                    |
-     +---------------------------------------->|
-     |                    |                    |
-     | JWT (signed by     |                    |
-     | Losing Reg AS)     |                    |
-     |<----------------------------------------|
-     |                    |                    |
-     | Transfer request   |                    |
-     | + Bearer JWT       |                    |
-     +------------------->|                    |
-     |                    |                    |
-     |                    | Validate JWT using |
-     |                    | cached Losing Reg  |
-     |                    | JWKS pubkey        |
-     |                    | (no runtime call)  |
-     |                    |------------------> |
-     |                    |                    |
-     | Transfer result    |                    |
-     |<-------------------|                    |
-     |                    |                    |
-```
-Figure: RPP Federation Trust Model — Onboarding, Discovery and Browser Redirect
-
 **Security properties.** This model provides the following guarantees:
 
+- No need for pre-established bilateral trust between registrars. Any two registrars can participate in a secure transfer as long as they both trust the registry.
+- The traditional transfer token is replaced with a signed JWT access token that the registry can validate locally, eliminating the risks of token leakage or replay attacks.
 - A rogue registrar cannot forge a transfer token that the registry will accept, because only the legitimate losing registrar's public key (registered at onboarding) can produce a valid signature.
 - The gaining registrar cannot forge registrant consent, because the token is issued by the losing registrar's AS, not the gaining registrar.
 - The registry controls the set of trusted ASs by controlling which registrar IdP metadata it accepts at onboarding.
 - Registrars need no knowledge of each other beyond what the registry exposes via the discovery endpoint.
 
-## Interactive Flow
+# Interactive Flow
 
 The interactive flow uses the OAuth 2.0 Authorization Code grant [@!RFC6749, Section 4.1] to obtain explicit, object-specific registrant consent directly from the losing registrar's AS. Before redirecting the registrant, the gaining registrar MUST first query the RPP auth server meta data endpoint to resolve the losing registrar's AS's authorization URI. If no AS URI is available for the losing registrar, the gaining registrar MUST fall back to the Fallback flow described in (#fallback-flow).
 
@@ -258,6 +202,7 @@ The following diagram illustrates a successful interactive OAuth 2.0 federated s
 ```ascii
   Client          Gaining         Registry        Losing
 (Registrant)    Registrar                        Registrar
+
      |               |               |               |
      | 1. Initiate   |               |               |
      |  transfer of  |               |               |
@@ -364,7 +309,7 @@ The steps in the diagram are as follows:
 13. The registry returns a successful transfer response to the gaining registrar.
 14. The gaining registrar confirms the completed transfer to the client.
 
-## Fallback Flow
+# Fallback Flow
 
 The Fallback flow uses opaque transfer authorization tokens to authorize object transfers between registrars. The gaining registrar obtains the transfer authorization token out-of-band from the losing registrar (e.g., via the registrant or a prior registrar-to-registrar agreement) and includes it in the transfer request. No OAuth 2.0 federation or end-user interaction is required. The registry validates the opaque token against the losing registrar's records to authorize the transfer.
 
