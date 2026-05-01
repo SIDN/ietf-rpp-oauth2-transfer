@@ -176,72 +176,17 @@ This requires the server to support the JWT profile for OAuth 2.0 Access Tokens 
 <t>The registry stores this metadata as part of the registrar's profile and makes it available via the discovery mechanism.</t>
 <t><strong>Token validation without bilateral trust.</strong> When the registry receives a transfer request carrying a JWT issued by the losing registrar's AS, it validates the token locally using the losing registrar's public key that was registered at onboarding. No runtime call to the losing registrar or its AS is required. The registry already trusts that public key because it was registered through the accreditation process.</t>
 <t><strong>Gaining registrar.</strong> The gaining registrar only needs to trust the registry. It obtains the losing registrar's AS URI from the registry's discovery endpoint, redirects the registrant's browser there, and exchanges the resulting authorization code for a token. It does not need to pre-configure or authenticate the losing registrar. The browser redirect and back-channel token exchange are both secured by standard HTTPS and do not require a federated identity relationship between the two registrars.</t>
-<t>The following diagram shows how AS URIs and public keys flow through the registry, and how the gaining registrar uses them at transfer time to redirect the registrant's browser:</t>
-<figure><name>RPP Federation Trust Model — Onboarding, Discovery and Browser Redirect
-</name>
-<sourcecode type="ascii"><![CDATA[  Gaining              Registry             Losing
-  Registrar          (Trust Anchor)        Registrar
-     |                    |                    |
-     |                    |                    |
-     : --- Onboarding --- : --- Onboarding --- :
-     |                    |                    |
-     | Register own AS    |                    |
-     | URI + JWKS pubkey  |                    |
-     +------------------->|                    |
-     |                    |                    |
-     |                    | Register own AS    |
-     |                    | URI + JWKS pubkey  |
-     |                    |<-------------------|
-     |                    |                    |
-     : --- Transfer time -------------------- :
-     |                    |                    |
-     | Discover Losing    |                    |
-     | Registrar AS URI   |                    |
-     +------------------->|                    |
-     |                    |                    |
-     | AS URI returned    |                    |
-     |<-------------------|                    |
-     |                    |                    |
-     | Redirect registrant's browser           |
-     | to Losing Registrar AS                  |
-     +---------------------------------------->|
-     |                    |                    |
-     | Auth code returned via browser redirect |
-     |<----------------------------------------|
-     |                    |                    |
-     | Exchange auth code |                    |
-     | for access token   |                    |
-     | (back-channel)     |                    |
-     +---------------------------------------->|
-     |                    |                    |
-     | JWT (signed by     |                    |
-     | Losing Reg AS)     |                    |
-     |<----------------------------------------|
-     |                    |                    |
-     | Transfer request   |                    |
-     | + Bearer JWT       |                    |
-     +------------------->|                    |
-     |                    |                    |
-     |                    | Validate JWT using |
-     |                    | cached Losing Reg  |
-     |                    | JWKS pubkey        |
-     |                    | (no runtime call)  |
-     |                    |------------------> |
-     |                    |                    |
-     | Transfer result    |                    |
-     |<-------------------|                    |
-     |                    |                    |
-]]>
-</sourcecode>
-</figure>
 <t><strong>Security properties.</strong> This model provides the following guarantees:</t>
 
 <ul spacing="compact">
+<li>No need for pre-established bilateral trust between registrars. Any two registrars can participate in a secure transfer as long as they both trust the registry.</li>
+<li>The traditional transfer token is replaced with a signed JWT access token that the registry can validate locally, eliminating the risks of token leakage or replay attacks.</li>
 <li>A rogue registrar cannot forge a transfer token that the registry will accept, because only the legitimate losing registrar's public key (registered at onboarding) can produce a valid signature.</li>
 <li>The gaining registrar cannot forge registrant consent, because the token is issued by the losing registrar's AS, not the gaining registrar.</li>
 <li>The registry controls the set of trusted ASs by controlling which registrar IdP metadata it accepts at onboarding.</li>
 <li>Registrars need no knowledge of each other beyond what the registry exposes via the discovery endpoint.</li>
 </ul>
+</section>
 </section>
 
 <section anchor="interactive-flow"><name>Interactive Flow</name>
@@ -252,6 +197,7 @@ This requires the server to support the JWT profile for OAuth 2.0 Access Tokens 
 </name>
 <sourcecode type="ascii"><![CDATA[  Client          Gaining         Registry        Losing
 (Registrant)    Registrar                        Registrar
+
      |               |               |               |
      | 1. Initiate   |               |               |
      |  transfer of  |               |               |
@@ -416,7 +362,6 @@ This requires the server to support the JWT profile for OAuth 2.0 Access Tokens 
 <li>The registry returns a successful transfer response to the gaining registrar.</li>
 <li>The gaining registrar confirms the completed transfer to the client.</li>
 </ol>
-</section>
 </section>
 
 <section anchor="iana-considerations"><name>IANA Considerations</name>

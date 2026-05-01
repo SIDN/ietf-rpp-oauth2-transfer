@@ -70,16 +70,16 @@ Table of Contents
    8.  Endpoints . . . . . . . . . . . . . . . . . . . . . . . . . .   7
    9.  Object Transfer . . . . . . . . . . . . . . . . . . . . . . .   7
      9.1.  Trust Model . . . . . . . . . . . . . . . . . . . . . . .   9
-     9.2.  Interactive Flow  . . . . . . . . . . . . . . . . . . . .  11
-     9.3.  Fallback Flow . . . . . . . . . . . . . . . . . . . . . .  15
-   10. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  17
-   11. Internationalization Considerations . . . . . . . . . . . . .  17
-   12. Security Considerations . . . . . . . . . . . . . . . . . . .  17
-   13. Change History  . . . . . . . . . . . . . . . . . . . . . . .  17
-     13.1.  Version 00 . . . . . . . . . . . . . . . . . . . . . . .  17
-   14. Normative References  . . . . . . . . . . . . . . . . . . . .  17
-   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  19
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  19
+   10. Interactive Flow  . . . . . . . . . . . . . . . . . . . . . .  10
+   11. Fallback Flow . . . . . . . . . . . . . . . . . . . . . . . .  14
+   12. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  16
+   13. Internationalization Considerations . . . . . . . . . . . . .  16
+   14. Security Considerations . . . . . . . . . . . . . . . . . . .  16
+   15. Change History  . . . . . . . . . . . . . . . . . . . . . . .  16
+     15.1.  Version 00 . . . . . . . . . . . . . . . . . . . . . . .  16
+   16. Normative References  . . . . . . . . . . . . . . . . . . . .  16
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  18
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  18
 
 1.  Introduction
 
@@ -515,76 +515,14 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
    both secured by standard HTTPS and do not require a federated
    identity relationship between the two registrars.
 
-   The following diagram shows how AS URIs and public keys flow through
-   the registry, and how the gaining registrar uses them at transfer
-   time to redirect the registrant's browser:
-
-     Gaining              Registry             Losing
-     Registrar          (Trust Anchor)        Registrar
-        |                    |                    |
-        |                    |                    |
-        : --- Onboarding --- : --- Onboarding --- :
-        |                    |                    |
-        | Register own AS    |                    |
-        | URI + JWKS pubkey  |                    |
-        +------------------->|                    |
-        |                    |                    |
-        |                    | Register own AS    |
-        |                    | URI + JWKS pubkey  |
-        |                    |<-------------------|
-        |                    |                    |
-        : --- Transfer time -------------------- :
-        |                    |                    |
-        | Discover Losing    |                    |
-        | Registrar AS URI   |                    |
-        +------------------->|                    |
-        |                    |                    |
-        | AS URI returned    |                    |
-        |<-------------------|                    |
-        |                    |                    |
-        | Redirect registrant's browser           |
-        | to Losing Registrar AS                  |
-        +---------------------------------------->|
-        |                    |                    |
-        | Auth code returned via browser redirect |
-        |<----------------------------------------|
-        |                    |                    |
-        | Exchange auth code |                    |
-        | for access token   |                    |
-        | (back-channel)     |                    |
-        +---------------------------------------->|
-        |                    |                    |
-
-
-
-Wullink & Kowalik        Expires 1 November 2026               [Page 10]
-
-Internet-Draft       Secure Object Transfer for RPP           April 2026
-
-
-        | JWT (signed by     |                    |
-        | Losing Reg AS)     |                    |
-        |<----------------------------------------|
-        |                    |                    |
-        | Transfer request   |                    |
-        | + Bearer JWT       |                    |
-        +------------------->|                    |
-        |                    |                    |
-        |                    | Validate JWT using |
-        |                    | cached Losing Reg  |
-        |                    | JWKS pubkey        |
-        |                    | (no runtime call)  |
-        |                    |------------------> |
-        |                    |                    |
-        | Transfer result    |                    |
-        |<-------------------|                    |
-        |                    |                    |
-
-      Figure 1: RPP Federation Trust Model — Onboarding, Discovery and
-                              Browser Redirect
-
    *Security properties.* This model provides the following guarantees:
 
+   -  No need for pre-established bilateral trust between registrars.
+      Any two registrars can participate in a secure transfer as long as
+      they both trust the registry.
+   -  The traditional transfer token is replaced with a signed JWT
+      access token that the registry can validate locally, eliminating
+      the risks of token leakage or replay attacks.
    -  A rogue registrar cannot forge a transfer token that the registry
       will accept, because only the legitimate losing registrar's public
       key (registered at onboarding) can produce a valid signature.
@@ -596,7 +534,7 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
    -  Registrars need no knowledge of each other beyond what the
       registry exposes via the discovery endpoint.
 
-9.2.  Interactive Flow
+10.  Interactive Flow
 
    The interactive flow uses the OAuth 2.0 Authorization Code grant
    Section 4.1 to obtain explicit, object-specific registrant consent
@@ -605,23 +543,24 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
    server meta data endpoint to resolve the losing registrar's AS's
    authorization URI.  If no AS URI is available for the losing
    registrar, the gaining registrar MUST fall back to the Fallback flow
-   described in Section 9.3.
+   described in Section 11.
 
    The authorization request MUST convey the specific object being
    transferred so that the losing registrar's AS can present the
    registrant with an accurate consent screen.  The *primary method* is
-
-
-
-Wullink & Kowalik        Expires 1 November 2026               [Page 11]
-
-Internet-Draft       Secure Object Transfer for RPP           April 2026
-
-
    Rich Authorization Requests (RAR) [RFC9396] as described in
    Section 4.  When the losing registrar's AS does not support RAR, the
    *fallback method* is to include the object identifier in the
    rpp_object_id claim.
+
+
+
+
+
+Wullink & Kowalik        Expires 1 November 2026               [Page 10]
+
+Internet-Draft       Secure Object Transfer for RPP           April 2026
+
 
    The following diagram illustrates a successful interactive OAuth 2.0
    federated secure object transfer, where both gaining and losing
@@ -630,6 +569,7 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
 
      Client          Gaining         Registry        Losing
    (Registrant)    Registrar                        Registrar
+
         |               |               |               |
         | 1. Initiate   |               |               |
         |  transfer of  |               |               |
@@ -666,18 +606,18 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
         |               |               |               |
         | 6. Auth code  |               |               |
         |  + redirect to|               |               |
-
-
-
-Wullink & Kowalik        Expires 1 November 2026               [Page 12]
-
-Internet-Draft       Secure Object Transfer for RPP           April 2026
-
-
         |  Gaining Reg  |               |               |
         |  callback URI |               |               |
         |<----------------------------------------------|
         |               |               |               |
+
+
+
+Wullink & Kowalik        Expires 1 November 2026               [Page 11]
+
+Internet-Draft       Secure Object Transfer for RPP           April 2026
+
+
         | 7. Follow     |               |               |
         |  redirect     |               |               |
         |  (auth code   |               |               |
@@ -722,18 +662,19 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
         |               |               |               |
         |  14. Transfer |               |               |
         |   confirmed   |               |               |
+        |<--------------|               |               |
+        |               |               |               |
 
 
 
-Wullink & Kowalik        Expires 1 November 2026               [Page 13]
+
+
+Wullink & Kowalik        Expires 1 November 2026               [Page 12]
 
 Internet-Draft       Secure Object Transfer for RPP           April 2026
 
 
-        |<--------------|               |               |
-        |               |               |               |
-
-           Figure 2: OAuth 2.0 Federated Secure Object Transfer -
+           Figure 1: OAuth 2.0 Federated Secure Object Transfer -
                               Interactive Flow
 
    The steps in the diagram are as follows:
@@ -777,23 +718,22 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
         authorization_details claim (RAR), the registry MUST verify that
         the type is rpp_transfer and that object_identifier matches the
         object being transferred.
-
-
-
-
-Wullink & Kowalik        Expires 1 November 2026               [Page 14]
-
-Internet-Draft       Secure Object Transfer for RPP           April 2026
-
-
    12.  The registry executes the transfer and notifies the losing
         registrar.
    13.  The registry returns a successful transfer response to the
         gaining registrar.
+
+
+
+Wullink & Kowalik        Expires 1 November 2026               [Page 13]
+
+Internet-Draft       Secure Object Transfer for RPP           April 2026
+
+
    14.  The gaining registrar confirms the completed transfer to the
         client.
 
-9.3.  Fallback Flow
+11.  Fallback Flow
 
    The Fallback flow uses opaque transfer authorization tokens to
    authorize object transfers between registrars.  The gaining registrar
@@ -837,7 +777,11 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
 
 
 
-Wullink & Kowalik        Expires 1 November 2026               [Page 15]
+
+
+
+
+Wullink & Kowalik        Expires 1 November 2026               [Page 14]
 
 Internet-Draft       Secure Object Transfer for RPP           April 2026
 
@@ -879,7 +823,7 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
         |<--------------|               |               |
         |               |               |               |
 
-        Figure 3: Fallback Object Transfer - Machine to Machine flow
+        Figure 2: Fallback Object Transfer - Machine to Machine flow
 
    The steps in the diagram are as follows:
 
@@ -893,7 +837,7 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
 
 
 
-Wullink & Kowalik        Expires 1 November 2026               [Page 16]
+Wullink & Kowalik        Expires 1 November 2026               [Page 15]
 
 Internet-Draft       Secure Object Transfer for RPP           April 2026
 
@@ -907,25 +851,25 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
    6.  The gaining registrar confirms the completed transfer to the
        client.
 
-10.  IANA Considerations
+12.  IANA Considerations
 
    TODO
 
-11.  Internationalization Considerations
+13.  Internationalization Considerations
 
    TODO
 
-12.  Security Considerations
+14.  Security Considerations
 
    TODO
 
-13.  Change History
+15.  Change History
 
-13.1.  Version 00
+15.1.  Version 00
 
    -  Created initial draft with core concepts and flows.
 
-14.  Normative References
+16.  Normative References
 
    [I-D.wullink-rpp-core]
               Wullink, M. and P. Kowalik, "RESTful Provisioning Protocol
@@ -949,7 +893,7 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
 
 
 
-Wullink & Kowalik        Expires 1 November 2026               [Page 17]
+Wullink & Kowalik        Expires 1 November 2026               [Page 16]
 
 Internet-Draft       Secure Object Transfer for RPP           April 2026
 
@@ -1005,7 +949,7 @@ Internet-Draft       Secure Object Transfer for RPP           April 2026
 
 
 
-Wullink & Kowalik        Expires 1 November 2026               [Page 18]
+Wullink & Kowalik        Expires 1 November 2026               [Page 17]
 
 Internet-Draft       Secure Object Transfer for RPP           April 2026
 
@@ -1061,4 +1005,4 @@ Authors' Addresses
 
 
 
-Wullink & Kowalik        Expires 1 November 2026               [Page 19]
+Wullink & Kowalik        Expires 1 November 2026               [Page 18]

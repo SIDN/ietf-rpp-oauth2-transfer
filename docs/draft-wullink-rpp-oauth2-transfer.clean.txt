@@ -63,14 +63,14 @@ Table of Contents
    8.  Endpoints
    9.  Object Transfer
      9.1.  Trust Model
-     9.2.  Interactive Flow
-     9.3.  Fallback Flow
-   10. IANA Considerations
-   11. Internationalization Considerations
-   12. Security Considerations
-   13. Change History
-     13.1.  Version 00
-   14. Normative References
+   10. Interactive Flow
+   11. Fallback Flow
+   12. IANA Considerations
+   13. Internationalization Considerations
+   14. Security Considerations
+   15. Change History
+     15.1.  Version 00
+   16. Normative References
    Acknowledgements
    Authors' Addresses
 
@@ -423,68 +423,14 @@ Table of Contents
    both secured by standard HTTPS and do not require a federated
    identity relationship between the two registrars.
 
-   The following diagram shows how AS URIs and public keys flow through
-   the registry, and how the gaining registrar uses them at transfer
-   time to redirect the registrant's browser:
-
-     Gaining              Registry             Losing
-     Registrar          (Trust Anchor)        Registrar
-        |                    |                    |
-        |                    |                    |
-        : --- Onboarding --- : --- Onboarding --- :
-        |                    |                    |
-        | Register own AS    |                    |
-        | URI + JWKS pubkey  |                    |
-        +------------------->|                    |
-        |                    |                    |
-        |                    | Register own AS    |
-        |                    | URI + JWKS pubkey  |
-        |                    |<-------------------|
-        |                    |                    |
-        : --- Transfer time -------------------- :
-        |                    |                    |
-        | Discover Losing    |                    |
-        | Registrar AS URI   |                    |
-        +------------------->|                    |
-        |                    |                    |
-        | AS URI returned    |                    |
-        |<-------------------|                    |
-        |                    |                    |
-        | Redirect registrant's browser           |
-        | to Losing Registrar AS                  |
-        +---------------------------------------->|
-        |                    |                    |
-        | Auth code returned via browser redirect |
-        |<----------------------------------------|
-        |                    |                    |
-        | Exchange auth code |                    |
-        | for access token   |                    |
-        | (back-channel)     |                    |
-        +---------------------------------------->|
-        |                    |                    |
-        | JWT (signed by     |                    |
-        | Losing Reg AS)     |                    |
-        |<----------------------------------------|
-        |                    |                    |
-        | Transfer request   |                    |
-        | + Bearer JWT       |                    |
-        +------------------->|                    |
-        |                    |                    |
-        |                    | Validate JWT using |
-        |                    | cached Losing Reg  |
-        |                    | JWKS pubkey        |
-        |                    | (no runtime call)  |
-        |                    |------------------> |
-        |                    |                    |
-        | Transfer result    |                    |
-        |<-------------------|                    |
-        |                    |                    |
-
-      Figure 1: RPP Federation Trust Model — Onboarding, Discovery and
-                              Browser Redirect
-
    *Security properties.* This model provides the following guarantees:
 
+   -  No need for pre-established bilateral trust between registrars.
+      Any two registrars can participate in a secure transfer as long as
+      they both trust the registry.
+   -  The traditional transfer token is replaced with a signed JWT
+      access token that the registry can validate locally, eliminating
+      the risks of token leakage or replay attacks.
    -  A rogue registrar cannot forge a transfer token that the registry
       will accept, because only the legitimate losing registrar's public
       key (registered at onboarding) can produce a valid signature.
@@ -496,7 +442,7 @@ Table of Contents
    -  Registrars need no knowledge of each other beyond what the
       registry exposes via the discovery endpoint.
 
-9.2.  Interactive Flow
+10.  Interactive Flow
 
    The interactive flow uses the OAuth 2.0 Authorization Code grant
    Section 4.1 to obtain explicit, object-specific registrant consent
@@ -505,7 +451,7 @@ Table of Contents
    server meta data endpoint to resolve the losing registrar's AS's
    authorization URI.  If no AS URI is available for the losing
    registrar, the gaining registrar MUST fall back to the Fallback flow
-   described in Section 9.3.
+   described in Section 11.
 
    The authorization request MUST convey the specific object being
    transferred so that the losing registrar's AS can present the
@@ -522,6 +468,7 @@ Table of Contents
 
      Client          Gaining         Registry        Losing
    (Registrant)    Registrar                        Registrar
+
         |               |               |               |
         | 1. Initiate   |               |               |
         |  transfer of  |               |               |
@@ -609,7 +556,7 @@ Table of Contents
         |<--------------|               |               |
         |               |               |               |
 
-           Figure 2: OAuth 2.0 Federated Secure Object Transfer -
+           Figure 1: OAuth 2.0 Federated Secure Object Transfer -
                               Interactive Flow
 
    The steps in the diagram are as follows:
@@ -660,7 +607,7 @@ Table of Contents
    14.  The gaining registrar confirms the completed transfer to the
         client.
 
-9.3.  Fallback Flow
+11.  Fallback Flow
 
    The Fallback flow uses opaque transfer authorization tokens to
    authorize object transfers between registrars.  The gaining registrar
@@ -714,7 +661,7 @@ Table of Contents
         |<--------------|               |               |
         |               |               |               |
 
-        Figure 3: Fallback Object Transfer - Machine to Machine flow
+        Figure 2: Fallback Object Transfer - Machine to Machine flow
 
    The steps in the diagram are as follows:
 
@@ -734,25 +681,25 @@ Table of Contents
    6.  The gaining registrar confirms the completed transfer to the
        client.
 
-10.  IANA Considerations
+12.  IANA Considerations
 
    TODO
 
-11.  Internationalization Considerations
+13.  Internationalization Considerations
 
    TODO
 
-12.  Security Considerations
+14.  Security Considerations
 
    TODO
 
-13.  Change History
+15.  Change History
 
-13.1.  Version 00
+15.1.  Version 00
 
    -  Created initial draft with core concepts and flows.
 
-14.  Normative References
+16.  Normative References
 
    [I-D.wullink-rpp-core]
               Wullink, M. and P. Kowalik, "RESTful Provisioning Protocol
