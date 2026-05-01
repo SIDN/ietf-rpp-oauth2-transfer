@@ -61,16 +61,16 @@ Table of Contents
    6.  Claims
    7.  Data Objects
    8.  Endpoints
-   9.  Object Transfer
-     9.1.  Trust Model
-   10. Interactive Flow
-   11. Fallback Flow
-   12. IANA Considerations
-   13. Internationalization Considerations
-   14. Security Considerations
-   15. Change History
-     15.1.  Version 00
-   16. Normative References
+   9.  Trust Model
+   10. Object Transfer Flows
+     10.1.  Interactive Flow
+     10.2.  Fallback Flow
+   11. IANA Considerations
+   12. Internationalization Considerations
+   13. Security Considerations
+   14. Change History
+     14.1.  Version 00
+   15. Normative References
    Acknowledgements
    Authors' Addresses
 
@@ -286,7 +286,66 @@ Table of Contents
 
    TODO
 
-9.  Object Transfer
+9.  Trust Model
+
+   The Secure Transfer depends on the OAAuth 2.0 federation model, where
+   the registry acts as the central trust anchor, operating as a hub-
+   and-spoke topology.  Registrars establish a trust relationship with
+   the registry during accreditation; they do not need to establish
+   direct trust relationships with each other.  This allows any two
+   registrars to participate in a Secure Transfer without any prior
+   bilateral arrangement.
+
+   *Registry as trust anchor.* As part of registrar onboarding, each
+   registrar that operates its own AS (i.e., maintains registrant
+   accounts) MUST register its AS metadata with the registry.  This
+   includes at minimum:
+
+   -  The AS's authorization endpoint URI, used by the gaining registrar
+      to construct the redirect.
+   -  The AS's JWKS endpoint URI or the public key material itself, used
+      by the registry to validate tokens issued by that AS.
+
+   The registry stores this metadata as part of the registrar's profile
+   and makes it available via the discovery mechanism.
+
+   *Token validation without bilateral trust.* When the registry
+   receives a transfer request carrying a JWT issued by the losing
+   registrar's AS, it validates the token locally using the losing
+   registrar's public key that was registered at onboarding.  No runtime
+   call to the losing registrar or its AS is required.  The registry
+   already trusts that public key because it was registered through the
+   accreditation process.
+
+   *Gaining registrar.* The gaining registrar only needs to trust the
+   registry.  It obtains the losing registrar's AS URI from the
+   registry's discovery endpoint, redirects the registrant's browser
+   there, and exchanges the resulting authorization code for a token.
+   It does not need to pre-configure or authenticate the losing
+   registrar.  The browser redirect and back-channel token exchange are
+   both secured by standard HTTPS and do not require a federated
+   identity relationship between the two registrars.
+
+   *Security properties.* This model provides the following guarantees:
+
+   -  No need for pre-established bilateral trust between registrars.
+      Any two registrars can participate in a secure transfer as long as
+      they both trust the registry.
+   -  The traditional transfer token is replaced with a signed JWT
+      access token that the registry can validate locally, eliminating
+      the risks of token leakage or replay attacks.
+   -  A rogue registrar cannot forge a transfer token that the registry
+      will accept, because only the legitimate losing registrar's public
+      key (registered at onboarding) can produce a valid signature.
+   -  The gaining registrar cannot forge registrant consent, because the
+      token is issued by the losing registrar's AS, not the gaining
+      registrar.
+   -  The registry controls the set of trusted ASs by controlling which
+      registrar IdP metadata it accepts at onboarding.
+   -  Registrars need no knowledge of each other beyond what the
+      registry exposes via the discovery endpoint.
+
+10.  Object Transfer Flows
 
    The server MAY support a secure object transfer mechanism based on
    OAuth 2.0 federation for secure object transfer between registrars,
@@ -383,66 +442,7 @@ Table of Contents
    transfer mechanisms based on OAuth 2.0 federation MUST support the
    federated identity provider function.
 
-9.1.  Trust Model
-
-   The Secure Transfer depends on the OAAuth 2.0 federation model, where
-   the registry acts as the central trust anchor, operating as a hub-
-   and-spoke topology.  Registrars establish a trust relationship with
-   the registry during accreditation; they do not need to establish
-   direct trust relationships with each other.  This allows any two
-   registrars to participate in a Secure Transfer without any prior
-   bilateral arrangement.
-
-   *Registry as trust anchor.* As part of registrar onboarding, each
-   registrar that operates its own AS (i.e., maintains registrant
-   accounts) MUST register its AS metadata with the registry.  This
-   includes at minimum:
-
-   -  The AS's authorization endpoint URI, used by the gaining registrar
-      to construct the redirect.
-   -  The AS's JWKS endpoint URI or the public key material itself, used
-      by the registry to validate tokens issued by that AS.
-
-   The registry stores this metadata as part of the registrar's profile
-   and makes it available via the discovery mechanism.
-
-   *Token validation without bilateral trust.* When the registry
-   receives a transfer request carrying a JWT issued by the losing
-   registrar's AS, it validates the token locally using the losing
-   registrar's public key that was registered at onboarding.  No runtime
-   call to the losing registrar or its AS is required.  The registry
-   already trusts that public key because it was registered through the
-   accreditation process.
-
-   *Gaining registrar.* The gaining registrar only needs to trust the
-   registry.  It obtains the losing registrar's AS URI from the
-   registry's discovery endpoint, redirects the registrant's browser
-   there, and exchanges the resulting authorization code for a token.
-   It does not need to pre-configure or authenticate the losing
-   registrar.  The browser redirect and back-channel token exchange are
-   both secured by standard HTTPS and do not require a federated
-   identity relationship between the two registrars.
-
-   *Security properties.* This model provides the following guarantees:
-
-   -  No need for pre-established bilateral trust between registrars.
-      Any two registrars can participate in a secure transfer as long as
-      they both trust the registry.
-   -  The traditional transfer token is replaced with a signed JWT
-      access token that the registry can validate locally, eliminating
-      the risks of token leakage or replay attacks.
-   -  A rogue registrar cannot forge a transfer token that the registry
-      will accept, because only the legitimate losing registrar's public
-      key (registered at onboarding) can produce a valid signature.
-   -  The gaining registrar cannot forge registrant consent, because the
-      token is issued by the losing registrar's AS, not the gaining
-      registrar.
-   -  The registry controls the set of trusted ASs by controlling which
-      registrar IdP metadata it accepts at onboarding.
-   -  Registrars need no knowledge of each other beyond what the
-      registry exposes via the discovery endpoint.
-
-10.  Interactive Flow
+10.1.  Interactive Flow
 
    The interactive flow uses the OAuth 2.0 Authorization Code grant
    Section 4.1 to obtain explicit, object-specific registrant consent
@@ -451,7 +451,7 @@ Table of Contents
    server meta data endpoint to resolve the losing registrar's AS's
    authorization URI.  If no AS URI is available for the losing
    registrar, the gaining registrar MUST fall back to the Fallback flow
-   described in Section 11.
+   described in Section 10.2.
 
    The authorization request MUST convey the specific object being
    transferred so that the losing registrar's AS can present the
@@ -607,7 +607,7 @@ Table of Contents
    14.  The gaining registrar confirms the completed transfer to the
         client.
 
-11.  Fallback Flow
+10.2.  Fallback Flow
 
    The Fallback flow uses opaque transfer authorization tokens to
    authorize object transfers between registrars.  The gaining registrar
@@ -681,25 +681,25 @@ Table of Contents
    6.  The gaining registrar confirms the completed transfer to the
        client.
 
-12.  IANA Considerations
+11.  IANA Considerations
 
    TODO
 
-13.  Internationalization Considerations
+12.  Internationalization Considerations
 
    TODO
 
-14.  Security Considerations
+13.  Security Considerations
 
    TODO
 
-15.  Change History
+14.  Change History
 
-15.1.  Version 00
+14.1.  Version 00
 
    -  Created initial draft with core concepts and flows.
 
-16.  Normative References
+15.  Normative References
 
    [I-D.wullink-rpp-core]
               Wullink, M. and P. Kowalik, "RESTful Provisioning Protocol
