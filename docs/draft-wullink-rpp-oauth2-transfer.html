@@ -1311,11 +1311,6 @@ li > p:last-of-type:only-child {
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
             <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-claims" class="internal xref">Claims</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
-                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-rpp-specific-claims" class="internal xref">RPP-Specific Claims</a></p>
-</li>
-            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
             <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-data-objects" class="internal xref">Data Objects</a></p>
@@ -1410,9 +1405,8 @@ li > p:last-of-type:only-child {
       <h2 id="name-object-transfer-details">
 <a href="#section-4" class="section-number selfRef">4. </a><a href="#name-object-transfer-details" class="section-name selfRef">Object Transfer Details</a>
       </h2>
-<p id="section-4-1">OAuth 2.0 Rich Authorization Requests <span>[<a href="#RFC9396" class="cite xref">RFC9396</a>]</span> extends the standard OAuth 2.0 authorization request with an <code>authorization_details</code> parameter that carries a structured JSON object describing precisely what the client is requesting authorization for. Unlike scopes, which are coarse-grained string tokens, <code>authorization_details</code> allows the request to include typed, fine-grained authorization data, such as the specific object being transferred. The AS can present to the user in a meaningful consent screen.<a href="#section-4-1" class="pilcrow">¶</a></p>
-<p id="section-4-2">In RPP, RAR is used for interactive federated object transfers to convey the specific domain name or contact handle being transferred. The gaining registrar includes an <code>authorization_details</code> object of type <code>rpp_transfer</code> in the authorization request to the losing registrar's AS. The registrant then sees exactly which object they are consenting to transfer. The AS MUST echo the <code>authorization_details</code> object back as a claim in the issued JWT, giving the registry verifiable, tamper-proof evidence of what was authorized and for which object.<a href="#section-4-2" class="pilcrow">¶</a></p>
-<p id="section-4-3">The <code>type</code> field MUST be set to <code>rpp_transfer</code>. Table <a href="#tbl-rar" class="auto internal xref">Table 1</a> lists the RAR fields defined for RPP.<a href="#section-4-3" class="pilcrow">¶</a></p>
+<p id="section-4-1">In RPP, Object Transfer Details as described in <span>[<a href="#I-D.wullink-rpp-oauth2" class="cite xref">I-D.wullink-rpp-oauth2</a>]</span> are used for interactive federated object transfers to convey the specific domain name or contact handle being transferred. The gaining registrar includes an <code>authorization_details</code> object of type <code>rpp_transfer</code> in the authorization request to the losing registrar's AS. The registrant then sees exactly which object they are consenting to transfer. The AS MUST echo the <code>authorization_details</code> object back as a claim in the issued access token, giving the registry verifiable, tamper-proof evidence of what was authorized and for which object.<a href="#section-4-1" class="pilcrow">¶</a></p>
+<p id="section-4-2">The <code>type</code> field MUST be set to <code>rpp_transfer</code>. Table <a href="#tbl-rar" class="auto internal xref">Table 1</a> lists the RAR fields defined for RPP.<a href="#section-4-2" class="pilcrow">¶</a></p>
 <span id="name-rpp-transfer-authorization-"></span><div id="tbl-rar">
 <table class="center" id="table-1">
         <caption>
@@ -1434,7 +1428,7 @@ li > p:last-of-type:only-child {
 </td>
             <td class="text-left" rowspan="1" colspan="1">String</td>
             <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
-            <td class="text-left" rowspan="1" colspan="1">MUST be <code>rpp_transfer</code>.</td>
+            <td class="text-left" rowspan="1" colspan="1">MUST be <code>transfer</code>.</td>
           </tr>
           <tr>
             <td class="text-left" rowspan="1" colspan="1">
@@ -1450,29 +1444,23 @@ li > p:last-of-type:only-child {
 </td>
             <td class="text-left" rowspan="1" colspan="1">String</td>
             <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
-            <td class="text-left" rowspan="1" colspan="1">The fully qualified name or handle of the specific object to be transferred (e.g., <code>foo.example</code> or <code>CID-12345</code>).</td>
+            <td class="text-left" rowspan="1" colspan="1">The unique identifier of the specific object to be transferred (e.g., <code>foo.example</code> or <code>CID-12345</code>).</td>
           </tr>
         </tbody>
       </table>
 </div>
-<p id="section-4-5">Example RAR <code>authorization_details</code> value for a domain transfer:<a href="#section-4-5" class="pilcrow">¶</a></p>
-<div class="lang-json sourcecode" id="section-4-6">
+<p id="section-4-4">Example RAR <code>authorization_details</code> value for a domain transfer:<a href="#section-4-4" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-4-5">
 <pre>[{
-  "type": "rpp_transfer",
+  "type": "transfer",
   "object_type": "domain",
   "object_identifier": "foo.example"
 }]
 
-</pre><a href="#section-4-6" class="pilcrow">¶</a>
+</pre><a href="#section-4-5" class="pilcrow">¶</a>
 </div>
-<p id="section-4-7">The losing registrar's AS MUST echo the <code>authorization_details</code> back as a claim in the issued JWT. The registry MUST validate the <code>authorization_details</code> claim in the token and MUST verify that <code>object_type</code> and <code>object_identifier</code> match the object being transferred.<a href="#section-4-7" class="pilcrow">¶</a></p>
-<p id="section-4-8">When the losing registrar's AS does not support RAR (<span>[<a href="#RFC9396" class="cite xref">RFC9396</a>]</span>), the specific object being transferred MUST be conveyed via the <code>rpp_object_id</code> claim:<a href="#section-4-8" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-4-9.1">To authorize a domain transfer, the specific domain name MUST be present in the <code>rpp_object_id</code> claim (e.g., <code>foo.example</code>).<a href="#section-4-9.1" class="pilcrow">¶</a>
-</li>
-        <li class="compact" id="section-4-9.2">To authorize a contact transfer, the specific contact identifier MUST be present in the <code>rpp_object_id</code> claim (e.g., <code>REG-12345</code>).<a href="#section-4-9.2" class="pilcrow">¶</a>
-</li>
-      </ul>
+<p id="section-4-6">The losing registrar's AS MUST echo the <code>authorization_details</code> back as a claim in the issued JWT. The registry MUST validate the <code>authorization_details</code> claim in the token and MUST verify that <code>object_type</code> and <code>object_identifier</code> match the object being transferred.<a href="#section-4-6" class="pilcrow">¶</a></p>
+<p id="section-4-7">When the losing registrar's AS does not support RAR (<span>[<a href="#RFC9396" class="cite xref">RFC9396</a>]</span>), the specific object being transferred MUST be conveyed via the <code>rpp_op_type</code>, <code>rpp_object_type</code> and <code>rpp_object_identifier</code> claims rather than encoded in the <code>authorization_details</code> claim. The <code>rpp_op_type</code> claim MUST be set to <code>transfer</code>. The <code>rpp_object_type</code> claim MUST be set to the RPP object type being transferred (e.g., <code>domain</code> or <code>contact</code>). The <code>rpp_object_identifier</code> claim MUST be set to the fully qualified name or handle of the specific object being transferred (e.g., <code>foo.example</code> or <code>CID-12345</code>). The registry MUST validate that these claim values match the object being transferred.<a href="#section-4-7" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="scopes">
@@ -1488,56 +1476,32 @@ li > p:last-of-type:only-child {
       <h2 id="name-claims">
 <a href="#section-6" class="section-number selfRef">6. </a><a href="#name-claims" class="section-name selfRef">Claims</a>
       </h2>
-<p id="section-6-1">RPP access tokens MUST conform to the JWT Profile for OAuth 2.0 Access Tokens defined in <span>[<a href="#RFC9068" class="cite xref">RFC9068</a>]</span>. This profile establishes a standardized set of claims that RPP uses to make authorization decisions consistently across implementations and identity providers.<a href="#section-6-1" class="pilcrow">¶</a></p>
-<div id="rpp-specific-claims">
-<section id="section-6.1">
-        <h3 id="name-rpp-specific-claims">
-<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-rpp-specific-claims" class="section-name selfRef">RPP-Specific Claims</a>
-        </h3>
-<p id="section-6.1-1">In addition to the standard <span>[<a href="#RFC9068" class="cite xref">RFC9068</a>]</span> claims, table <a href="#tbl-rpp-claims" class="auto internal xref">Table 2</a> lists the RPP-specific claims that are defined to enable fine-grained authorization decisions. Required claims MUST be present in every RPP access token. Optional claims SHOULD be included when applicable to the deployment or request context.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<p id="section-6-1">In addition to the standard <span>[<a href="#RFC9068" class="cite xref">RFC9068</a>]</span> claims, table <a href="#tbl-rpp-claims" class="auto internal xref">Table 2</a> lists the RPP-specific claims that are defined to enable fine-grained authorization decisions. Required claims MUST be present in every RPP access token. Optional claims SHOULD be included when applicable to the deployment or request context.<a href="#section-6-1" class="pilcrow">¶</a></p>
 <span id="name-rpp-specific-access-token-c"></span><div id="tbl-rpp-claims">
 <table class="center" id="table-2">
-          <caption>
+        <caption>
 <a href="#table-2" class="selfRef">Table 2</a>:
 <a href="#name-rpp-specific-access-token-c" class="selfRef">RPP Specific Access Token Claims</a>
-          </caption>
+        </caption>
 <thead>
-            <tr>
-              <th class="text-left" rowspan="1" colspan="1">Claim</th>
-              <th class="text-left" rowspan="1" colspan="1">Requirement</th>
-              <th class="text-left" rowspan="1" colspan="1">Type</th>
-              <th class="text-left" rowspan="1" colspan="1">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="text-left" rowspan="1" colspan="1">
-                <code>rpp_transfer_authinfo</code>
+          <tr>
+            <th class="text-left" rowspan="1" colspan="1">Claim</th>
+            <th class="text-left" rowspan="1" colspan="1">Requirement</th>
+            <th class="text-left" rowspan="1" colspan="1">Type</th>
+            <th class="text-left" rowspan="1" colspan="1">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>rpp_transfer_authinfo</code>
 </td>
-              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
-              <td class="text-left" rowspan="1" colspan="1">String</td>
-              <td class="text-left" rowspan="1" colspan="1">The transfer authorization information used in Fallback flow object transfer. When present, the value MUST be equivalent to the value that would otherwise be sent in the <code>RPP-Authorization</code> header <span>[<a href="#I-D.wullink-rpp-core" class="cite xref">I-D.wullink-rpp-core</a>]</span>, using the same <code>&lt;method&gt; &lt;authorization information&gt;</code> format. The RPP server MUST treat this claim as equivalent to the <code>RPP-Authorization</code> header; if both are present in the same request, the claim value MUST take precedence. This claim MUST only be present in access tokens used for transfer operations.</td>
-            </tr>
-            <tr>
-              <td class="text-left" rowspan="1" colspan="1">
-                <code>rpp_object_id</code>
-</td>
-              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
-              <td class="text-left" rowspan="1" colspan="1">String</td>
-              <td class="text-left" rowspan="1" colspan="1">The identifier of the specific object being transferred. MUST be present in access tokens for interactive federated transfers when the fallback dynamic scope method is used (<code>transfer:domain</code> or <code>transfer:contact</code>) and the <code>authorization_details</code> claim (<span>[<a href="#RFC9396" class="cite xref">RFC9396</a>]</span>) is not present. The value MUST be the fully qualified name or handle of the object (e.g., <code>foo.example</code> or <code>CID-12345</code>). The RPP server MUST validate that this value matches the object being transferred. This claim MUST NOT be present when <code>authorization_details</code> is present.</td>
-            </tr>
-            <tr>
-              <td class="text-left" rowspan="1" colspan="1">
-                <code>authorization_details</code>
-</td>
-              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
-              <td class="text-left" rowspan="1" colspan="1">Array of Objects</td>
-              <td class="text-left" rowspan="1" colspan="1">Rich authorization details as defined by <span>[<a href="#RFC9396" class="cite xref">RFC9396</a>]</span>. MUST be present in access tokens for interactive federated transfers when the RAR method is used. Each object in the array MUST have a <code>type</code> field; for RPP transfer tokens the <code>type</code> MUST be <code>rpp_transfer</code> and the object MUST include <code>object_type</code> and <code>object_identifier</code> fields (see <a href="#tbl-rar" class="auto internal xref">Table 1</a>). The RPP server MUST validate that <code>object_type</code> and <code>object_identifier</code> match the object being transferred. When this claim is present, the <code>rpp_object_id</code> claim MUST NOT be present.</td>
-            </tr>
-          </tbody>
-        </table>
-</div>
-</section>
+            <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
+            <td class="text-left" rowspan="1" colspan="1">String</td>
+            <td class="text-left" rowspan="1" colspan="1">The transfer authorization information used in Fallback flow object transfer. When present, the value MUST be equivalent to the value that would otherwise be sent in the <code>RPP-Authorization</code> header <span>[<a href="#I-D.wullink-rpp-core" class="cite xref">I-D.wullink-rpp-core</a>]</span>, using the same <code>&lt;method&gt; &lt;authorization information&gt;</code> format. The RPP server MUST treat this claim as equivalent to the <code>RPP-Authorization</code> header; if both are present in the same request, the claim value MUST take precedence. This claim MUST only be present in access tokens used for transfer operations.</td>
+          </tr>
+        </tbody>
+      </table>
 </div>
 </section>
 </div>

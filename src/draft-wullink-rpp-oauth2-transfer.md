@@ -84,17 +84,15 @@ All example requests assume an RPP server using HTTP version 2 is listening on t
 
 # Object Transfer Details
 
-OAuth 2.0 Rich Authorization Requests [@!RFC9396] extends the standard OAuth 2.0 authorization request with an `authorization_details` parameter that carries a structured JSON object describing precisely what the client is requesting authorization for. Unlike scopes, which are coarse-grained string tokens, `authorization_details` allows the request to include typed, fine-grained authorization data, such as the specific object being transferred. The AS can present to the user in a meaningful consent screen.
-
-In RPP, RAR is used for interactive federated object transfers to convey the specific domain name or contact handle being transferred. The gaining registrar includes an `authorization_details` object of type `rpp_transfer` in the authorization request to the losing registrar's AS. The registrant then sees exactly which object they are consenting to transfer. The AS MUST echo the `authorization_details` object back as a claim in the issued JWT, giving the registry verifiable, tamper-proof evidence of what was authorized and for which object.
+In RPP, Object Transfer Details as described in [@!I-D.wullink-rpp-oauth2] are used for interactive federated object transfers to convey the specific domain name or contact handle being transferred. The gaining registrar includes an `authorization_details` object of type `rpp_transfer` in the authorization request to the losing registrar's AS. The registrant then sees exactly which object they are consenting to transfer. The AS MUST echo the `authorization_details` object back as a claim in the issued access token, giving the registry verifiable, tamper-proof evidence of what was authorized and for which object.
 
 The `type` field MUST be set to `rpp_transfer`. Table (#tbl-rar) lists the RAR fields defined for RPP.
 
 | Field | Type | Requirement | Description |
 | ----- | ---- | ----------- | ----------- |
-| `type` | String | REQUIRED | MUST be `rpp_transfer`. |
+| `type` | String | REQUIRED | MUST be `transfer`. |
 | `object_type` | String | REQUIRED | The RPP object type being transferred. MUST be one of `domain` or `contact`. |
-| `object_identifier` | String | REQUIRED | The fully qualified name or handle of the specific object to be transferred (e.g., `foo.example` or `CID-12345`). |
+| `object_identifier` | String | REQUIRED | The unique identifier of the specific object to be transferred (e.g., `foo.example` or `CID-12345`). |
 Table: RPP Transfer Authorization, RAR `authorization_details` object (Primary Method, [@!RFC9396])
 {#tbl-rar}
 
@@ -102,7 +100,7 @@ Example RAR `authorization_details` value for a domain transfer:
 
 ```json
 [{
-  "type": "rpp_transfer",
+  "type": "transfer",
   "object_type": "domain",
   "object_identifier": "foo.example"
 }]
@@ -110,10 +108,7 @@ Example RAR `authorization_details` value for a domain transfer:
 
 The losing registrar's AS MUST echo the `authorization_details` back as a claim in the issued JWT. The registry MUST validate the `authorization_details` claim in the token and MUST verify that `object_type` and `object_identifier` match the object being transferred.
 
-When the losing registrar's AS does not support RAR ([@!RFC9396]), the specific object being transferred MUST be conveyed via the `rpp_object_id` claim:
-
-- To authorize a domain transfer, the specific domain name MUST be present in the `rpp_object_id` claim (e.g., `foo.example`). 
-- To authorize a contact transfer, the specific contact identifier MUST be present in the `rpp_object_id` claim (e.g., `REG-12345`). 
+When the losing registrar's AS does not support RAR ([@!RFC9396]), the specific object being transferred MUST be conveyed via the `rpp_op_type`, `rpp_object_type` and `rpp_object_identifier` claims rather than encoded in the `authorization_details` claim. The `rpp_op_type` claim MUST be set to `transfer`. The `rpp_object_type` claim MUST be set to the RPP object type being transferred (e.g., `domain` or `contact`). The `rpp_object_identifier` claim MUST be set to the fully qualified name or handle of the specific object being transferred (e.g., `foo.example` or `CID-12345`). The registry MUST validate that these claim values match the object being transferred.
 
 # Scopes
 
@@ -121,17 +116,11 @@ RPP OAuth 2.0 scopes are defined in [@!I-D.wullink-rpp-oauth2]. This document do
 
 # Claims
 
-RPP access tokens MUST conform to the JWT Profile for OAuth 2.0 Access Tokens defined in [@!RFC9068]. This profile establishes a standardized set of claims that RPP uses to make authorization decisions consistently across implementations and identity providers.
-
-## RPP-Specific Claims
-
 In addition to the standard [@!RFC9068] claims, table (#tbl-rpp-claims) lists the RPP-specific claims that are defined to enable fine-grained authorization decisions. Required claims MUST be present in every RPP access token. Optional claims SHOULD be included when applicable to the deployment or request context.
 
 | Claim | Requirement | Type | Description |
 | ----- | ----------- | ---- | ----------- |
 | `rpp_transfer_authinfo` | OPTIONAL | String | The transfer authorization information used in Fallback flow object transfer. When present, the value MUST be equivalent to the value that would otherwise be sent in the `RPP-Authorization` header [@!I-D.wullink-rpp-core], using the same `<method> <authorization information>` format. The RPP server MUST treat this claim as equivalent to the `RPP-Authorization` header; if both are present in the same request, the claim value MUST take precedence. This claim MUST only be present in access tokens used for transfer operations. |
-| `rpp_object_id` | OPTIONAL | String | The identifier of the specific object being transferred. MUST be present in access tokens for interactive federated transfers when the fallback dynamic scope method is used (`transfer:domain` or `transfer:contact`) and the `authorization_details` claim ([@!RFC9396]) is not present. The value MUST be the fully qualified name or handle of the object (e.g., `foo.example` or `CID-12345`). The RPP server MUST validate that this value matches the object being transferred. This claim MUST NOT be present when `authorization_details` is present. |
-| `authorization_details` | OPTIONAL | Array of Objects | Rich authorization details as defined by [@!RFC9396]. MUST be present in access tokens for interactive federated transfers when the RAR method is used. Each object in the array MUST have a `type` field; for RPP transfer tokens the `type` MUST be `rpp_transfer` and the object MUST include `object_type` and `object_identifier` fields (see (#tbl-rar)). The RPP server MUST validate that `object_type` and `object_identifier` match the object being transferred. When this claim is present, the `rpp_object_id` claim MUST NOT be present. |
 Table: RPP Specific Access Token Claims
 {#tbl-rpp-claims}
 
